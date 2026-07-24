@@ -1,4 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
+import {
+  ActionItemList,
+  getActionItemsFromMeetings,
+} from "./components/ActionItemList";
 import { MeetingDetail } from "./components/MeetingDetail";
 import { MeetingForm } from "./components/MeetingForm";
 import { MeetingList } from "./components/MeetingList";
@@ -9,6 +13,7 @@ import { parseTags, sortMeetingsByDate } from "./utils";
 
 type View =
   | { name: "list" }
+  | { name: "actions" }
   | { name: "create" }
   | { name: "detail"; meetingId: number }
   | { name: "edit"; meetingId: number };
@@ -93,6 +98,9 @@ export default function App() {
   const [view, setView] = useState<View>({ name: "list" });
   const [query, setQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState("");
+  const [actionQuery, setActionQuery] = useState("");
+  const [actionStatusFilter, setActionStatusFilter] = useState("open");
+  const [actionAssigneeFilter, setActionAssigneeFilter] = useState("");
 
   useEffect(() => {
     saveMeetings(meetings);
@@ -109,6 +117,33 @@ export default function App() {
   const tags = useMemo(
     () => Array.from(new Set(meetings.flatMap((meeting) => meeting.tags))).sort(),
     [meetings],
+  );
+  const actionItems = useMemo(
+    () => getActionItemsFromMeetings(meetings),
+    [meetings],
+  );
+  const actionAssignees = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          actionItems
+            .map((item) => item.assignee.trim())
+            .filter((assignee) => assignee.length > 0),
+        ),
+      ).sort(),
+    [actionItems],
+  );
+  const filteredActionItems = useMemo(
+    () =>
+      actionItems.filter((item) =>
+        matchActionItem(
+          item,
+          actionQuery,
+          actionStatusFilter,
+          actionAssigneeFilter,
+        ),
+      ),
+    [actionAssigneeFilter, actionItems, actionQuery, actionStatusFilter],
   );
   const selectedMeeting =
     "meetingId" in view
@@ -158,14 +193,10 @@ export default function App() {
     }
   }
 
-  function toggleActionItem(actionItemId: number) {
-    if (!selectedMeeting) {
-      return;
-    }
-
+  function toggleActionItem(meetingId: number, actionItemId: number) {
     setMeetings((current) =>
       current.map((meeting) =>
-        meeting.id === selectedMeeting.id
+        meeting.id === meetingId
           ? {
               ...meeting,
               updatedAt: new Date().toISOString(),
@@ -204,6 +235,14 @@ export default function App() {
             <dd>{tags.length}</dd>
           </div>
         </dl>
+        <div className="sidebar-actions">
+          <button type="button" onClick={() => setView({ name: "list" })}>
+            会議メモ
+          </button>
+          <button type="button" onClick={() => setView({ name: "actions" })}>
+            TODO 一覧
+          </button>
+        </div>
       </aside>
 
       {view.name === "list" && (
@@ -221,6 +260,22 @@ export default function App() {
         />
       )}
 
+      {view.name === "actions" && (
+        <ActionItemList
+          actionItems={filteredActionItems}
+          assignees={actionAssignees}
+          query={actionQuery}
+          statusFilter={actionStatusFilter}
+          assigneeFilter={actionAssigneeFilter}
+          onQueryChange={setActionQuery}
+          onStatusFilterChange={setActionStatusFilter}
+          onAssigneeFilterChange={setActionAssigneeFilter}
+          onBack={() => setView({ name: "list" })}
+          onOpenMeeting={(meetingId) => setView({ name: "detail", meetingId })}
+          onToggleAction={toggleActionItem}
+        />
+      )}
+
       {view.name === "create" && (
         <MeetingForm
           mode="create"
@@ -234,7 +289,9 @@ export default function App() {
           meeting={selectedMeeting}
           onBack={() => setView({ name: "list" })}
           onEdit={() => setView({ name: "edit", meetingId: selectedMeeting.id })}
-          onToggleAction={toggleActionItem}
+          onToggleAction={(actionItemId) =>
+            toggleActionItem(selectedMeeting.id, actionItemId)
+          }
         />
       )}
 
@@ -248,4 +305,34 @@ export default function App() {
       )}
     </main>
   );
+}
+
+function matchActionItem(
+  item: ActionItem & { meetingTitle: string },
+  query: string,
+  status: string,
+  assignee: string,
+) {
+  if (status === "open" && item.isCompleted) {
+    return false;
+  }
+
+  if (status === "done" && !item.isCompleted) {
+    return false;
+  }
+
+  if (assignee && item.assignee !== assignee) {
+    return false;
+  }
+
+  const normalizedQuery = query.trim().toLowerCase();
+
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  return [item.content, item.assignee, item.meetingTitle]
+    .join(" ")
+    .toLowerCase()
+    .includes(normalizedQuery);
 }

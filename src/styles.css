@@ -472,3 +472,123 @@ textarea {
     flex: 1 1 140px;
   }
 }
+
+.sidebar-actions {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.sidebar-actions button {
+  border-color: rgb(255 255 255 / 16%);
+  background: rgb(255 255 255 / 8%);
+  color: #f8f4ea;
+  text-align: left;
+}
+
+.sidebar-actions button:hover {
+  border-color: rgb(255 255 255 / 34%);
+  background: rgb(255 255 255 / 14%);
+}
+
+.action-filters {
+  grid-template-columns: minmax(220px, 1fr) minmax(150px, 200px) minmax(150px, 220px);
+}
+
+.todo-board {
+  display: grid;
+  gap: 0.9rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.todo-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.75fr) auto;
+  gap: 1rem;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 1rem;
+}
+
+.todo-card.done {
+  background: #eef4ee;
+}
+
+.todo-card.done .todo-card-main .check-row span {
+  color: var(--ink-muted);
+  text-decoration: line-through;
+}
+
+.todo-card-main p {
+  margin: 0.45rem 0 0 1.75rem;
+  color: var(--ink-muted);
+}
+
+.todo-card-meta,
+.todo-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.todo-card-meta {
+  color: var(--ink-muted);
+  font-size: 0.9rem;
+}
+
+.todo-card-actions {
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.status-badge {
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 0.3rem 0.65rem;
+}
+
+.open-badge {
+  background: #eef6f3;
+  color: #27534d;
+}
+
+.overdue-badge {
+  background: #f5dfd9;
+  color: var(--danger);
+}
+
+.done-badge {
+  background: #e1e7dc;
+  color: #4e6848;
+}
+
+@media (max-width: 980px) {
+  .sidebar-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .todo-card {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .action-filters,
+  .sidebar-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .todo-card-actions {
+    justify-content: stretch;
+  }
+
+  .todo-card-actions button {
+    flex: 1 1 140px;
+  }
+}

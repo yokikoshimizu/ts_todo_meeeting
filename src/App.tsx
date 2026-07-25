@@ -96,6 +96,7 @@ export default function App() {
     loadMeetings(initialMeetings),
   );
   const [view, setView] = useState<View>({ name: "list" });
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState("");
   const [actionQuery, setActionQuery] = useState("");
@@ -105,6 +106,28 @@ export default function App() {
   useEffect(() => {
     saveMeetings(meetings);
   }, [meetings]);
+
+  useEffect(() => {
+    if (!isMobileMenuOpen) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsMobileMenuOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isMobileMenuOpen]);
 
   const sortedMeetings = useMemo(() => sortMeetingsByDate(meetings), [meetings]);
   const filteredMeetings = useMemo(
@@ -155,6 +178,8 @@ export default function App() {
       meeting.actionItems.filter((item: ActionItem) => !item.isCompleted).length,
     0,
   );
+  const isMeetingSection = view.name !== "actions";
+  const currentViewLabel = isMeetingSection ? "会議メモ" : "TODO 一覧";
 
   function handleCreate(values: MeetingFormValues) {
     const meeting = createMeeting(values, meetings);
@@ -211,9 +236,43 @@ export default function App() {
     );
   }
 
+  function navigate(nextView: View) {
+    setView(nextView);
+    setIsMobileMenuOpen(false);
+  }
+
   return (
-    <main className="app-shell">
-      <aside className="sidebar" aria-label="アプリ概要">
+    <main className={`app-shell ${isMobileMenuOpen ? "mobile-menu-open" : ""}`}>
+      <header className="mobile-topbar">
+        <div className="mobile-brand">
+          <span className="brand-mark">MM</span>
+          <div>
+            <p>会議メモ整理</p>
+            <strong>{currentViewLabel}</strong>
+          </div>
+        </div>
+        <button
+          className="menu-toggle"
+          type="button"
+          aria-label={isMobileMenuOpen ? "メニューを閉じる" : "メニューを開く"}
+          aria-controls="app-navigation"
+          aria-expanded={isMobileMenuOpen}
+          onClick={() => setIsMobileMenuOpen((current) => !current)}
+        >
+          <span />
+          <span />
+          <span />
+        </button>
+      </header>
+
+      <button
+        className="menu-backdrop"
+        type="button"
+        aria-label="メニューを閉じる"
+        onClick={() => setIsMobileMenuOpen(false)}
+      />
+
+      <aside className="sidebar" id="app-navigation" aria-label="アプリ概要">
         <div className="brand-block">
           <span className="brand-mark">MM</span>
           <div>
@@ -236,10 +295,20 @@ export default function App() {
           </div>
         </dl>
         <div className="sidebar-actions">
-          <button type="button" onClick={() => setView({ name: "list" })}>
+          <button
+            type="button"
+            className={isMeetingSection ? "active-nav" : ""}
+            aria-current={isMeetingSection ? "page" : undefined}
+            onClick={() => navigate({ name: "list" })}
+          >
             会議メモ
           </button>
-          <button type="button" onClick={() => setView({ name: "actions" })}>
+          <button
+            type="button"
+            className={view.name === "actions" ? "active-nav" : ""}
+            aria-current={view.name === "actions" ? "page" : undefined}
+            onClick={() => navigate({ name: "actions" })}
+          >
             TODO 一覧
           </button>
         </div>
@@ -253,9 +322,9 @@ export default function App() {
           query={query}
           onQueryChange={setQuery}
           onTagChange={setSelectedTag}
-          onCreate={() => setView({ name: "create" })}
-          onOpen={(meetingId) => setView({ name: "detail", meetingId })}
-          onEdit={(meetingId) => setView({ name: "edit", meetingId })}
+          onCreate={() => navigate({ name: "create" })}
+          onOpen={(meetingId) => navigate({ name: "detail", meetingId })}
+          onEdit={(meetingId) => navigate({ name: "edit", meetingId })}
           onDelete={handleDelete}
         />
       )}
@@ -270,8 +339,8 @@ export default function App() {
           onQueryChange={setActionQuery}
           onStatusFilterChange={setActionStatusFilter}
           onAssigneeFilterChange={setActionAssigneeFilter}
-          onBack={() => setView({ name: "list" })}
-          onOpenMeeting={(meetingId) => setView({ name: "detail", meetingId })}
+          onBack={() => navigate({ name: "list" })}
+          onOpenMeeting={(meetingId) => navigate({ name: "detail", meetingId })}
           onToggleAction={toggleActionItem}
         />
       )}
@@ -279,7 +348,7 @@ export default function App() {
       {view.name === "create" && (
         <MeetingForm
           mode="create"
-          onCancel={() => setView({ name: "list" })}
+          onCancel={() => navigate({ name: "list" })}
           onSubmit={handleCreate}
         />
       )}
@@ -287,8 +356,8 @@ export default function App() {
       {view.name === "detail" && selectedMeeting && (
         <MeetingDetail
           meeting={selectedMeeting}
-          onBack={() => setView({ name: "list" })}
-          onEdit={() => setView({ name: "edit", meetingId: selectedMeeting.id })}
+          onBack={() => navigate({ name: "list" })}
+          onEdit={() => navigate({ name: "edit", meetingId: selectedMeeting.id })}
           onToggleAction={(actionItemId) =>
             toggleActionItem(selectedMeeting.id, actionItemId)
           }
@@ -299,7 +368,9 @@ export default function App() {
         <MeetingForm
           mode="edit"
           meeting={selectedMeeting}
-          onCancel={() => setView({ name: "detail", meetingId: selectedMeeting.id })}
+          onCancel={() =>
+            navigate({ name: "detail", meetingId: selectedMeeting.id })
+          }
           onSubmit={handleUpdate}
         />
       )}

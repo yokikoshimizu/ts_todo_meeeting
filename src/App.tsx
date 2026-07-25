@@ -179,7 +179,6 @@ export default function App() {
     0,
   );
   const isMeetingSection = view.name !== "actions";
-  const currentViewLabel = isMeetingSection ? "会議メモ" : "TODO 一覧";
 
   function handleCreate(values: MeetingFormValues) {
     const meeting = createMeeting(values, meetings);
@@ -248,7 +247,7 @@ export default function App() {
           <span className="brand-mark">MM</span>
           <div>
             <p>会議メモ整理</p>
-            <strong>{currentViewLabel}</strong>
+            <strong>Decision Log</strong>
           </div>
         </div>
         <button
@@ -295,6 +294,13 @@ export default function App() {
           </div>
         </dl>
         <div className="sidebar-actions">
+          <button
+            type="button"
+            className="menu-create-button"
+            onClick={() => navigate({ name: "create" })}
+          >
+            新規登録
+          </button>
           <button
             type="button"
             className={isMeetingSection ? "active-nav" : ""}

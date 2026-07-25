@@ -597,6 +597,10 @@ textarea {
   display: none;
 }
 
+.menu-create-button {
+  display: none;
+}
+
 .sidebar-actions button.active-nav {
   border-color: rgb(255 255 255 / 42%);
   background: rgb(255 255 255 / 18%);
@@ -761,6 +765,23 @@ textarea {
   .sidebar-actions button {
     min-height: 48px;
     text-align: center;
+  }
+
+  .desktop-create-button {
+    display: none;
+  }
+
+  .menu-create-button {
+    display: block;
+    border-color: var(--primary);
+    background: var(--primary);
+    color: #ffffff;
+    font-weight: 800;
+  }
+
+  .menu-create-button:hover {
+    border-color: var(--primary-dark);
+    background: var(--primary-dark);
   }
 
   .workspace {

@@ -33,7 +33,11 @@ export function MeetingList({
           <p className="eyebrow">Meeting Notes</p>
           <h1 id="meeting-list-title">会議メモ一覧</h1>
         </div>
-        <button className="primary-button" type="button" onClick={onCreate}>
+        <button
+          className="primary-button desktop-create-button"
+          type="button"
+          onClick={onCreate}
+        >
           新規登録
         </button>
       </div>

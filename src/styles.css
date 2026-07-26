@@ -172,6 +172,23 @@ textarea {
   background: var(--primary-dark);
 }
 
+.back-link-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 36px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--primary-dark);
+  font-weight: 700;
+  padding: 0.35rem 0.45rem;
+}
+
+.back-link-button:hover {
+  border-color: var(--line);
+  background: var(--surface);
+}
+
 .danger-button {
   color: var(--danger);
 }
@@ -470,6 +487,12 @@ textarea {
   .button-row button,
   .toolbar > button {
     flex: 1 1 140px;
+  }
+
+  .toolbar > .back-link-button {
+    order: -1;
+    align-self: flex-start;
+    flex: 0 0 auto;
   }
 }
 

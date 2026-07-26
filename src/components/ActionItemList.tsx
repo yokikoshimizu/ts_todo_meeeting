@@ -68,8 +68,9 @@ export function ActionItemList({
           <p className="eyebrow">Action Items</p>
           <h1 id="action-list-title">TODO 一覧</h1>
         </div>
-        <button type="button" onClick={onBack}>
-          会議メモ一覧へ
+        <button className="back-link-button" type="button" onClick={onBack}>
+          <span aria-hidden="true">&larr;</span>
+          会議メモ一覧
         </button>
       </div>
 

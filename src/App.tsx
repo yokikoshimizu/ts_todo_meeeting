@@ -102,6 +102,8 @@ export default function App() {
   const [actionQuery, setActionQuery] = useState("");
   const [actionStatusFilter, setActionStatusFilter] = useState("open");
   const [actionAssigneeFilter, setActionAssigneeFilter] = useState("");
+  const [isFormDirty, setIsFormDirty] = useState(false);
+  const [notice, setNotice] = useState("");
 
   useEffect(() => {
     saveMeetings(meetings);
@@ -128,6 +130,33 @@ export default function App() {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isMobileMenuOpen]);
+
+  useEffect(() => {
+    if (!notice) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => setNotice(""), 3500);
+    return () => window.clearTimeout(timeoutId);
+  }, [notice]);
+
+  useEffect(() => {
+    if (!isFormDirty) {
+      return;
+    }
+
+    function handleBeforeUnload(event: BeforeUnloadEvent) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isFormDirty]);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [view]);
 
   const sortedMeetings = useMemo(() => sortMeetingsByDate(meetings), [meetings]);
   const filteredMeetings = useMemo(
@@ -182,6 +211,8 @@ export default function App() {
 
   function handleCreate(values: MeetingFormValues) {
     const meeting = createMeeting(values, meetings);
+    setIsFormDirty(false);
+    setNotice("会議メモを保存しました。");
     setMeetings((current) => sortMeetingsByDate([meeting, ...current]));
     setView({ name: "detail", meetingId: meeting.id });
   }
@@ -192,6 +223,8 @@ export default function App() {
     }
 
     const updatedMeeting = updateMeetingValues(selectedMeeting, values);
+    setIsFormDirty(false);
+    setNotice("会議メモを更新しました。");
     setMeetings((current) =>
       sortMeetingsByDate(
         current.map((meeting) =>
@@ -236,6 +269,26 @@ export default function App() {
   }
 
   function navigate(nextView: View) {
+    const isSameView =
+      view.name === nextView.name &&
+      (!("meetingId" in view) ||
+        !("meetingId" in nextView) ||
+        view.meetingId === nextView.meetingId);
+
+    if (isSameView) {
+      setIsMobileMenuOpen(false);
+      return;
+    }
+
+    if (
+      isFormDirty &&
+      (view.name === "create" || view.name === "edit") &&
+      !window.confirm("入力中の内容を破棄して移動しますか？")
+    ) {
+      return;
+    }
+
+    setIsFormDirty(false);
     setView(nextView);
     setIsMobileMenuOpen(false);
   }
@@ -270,6 +323,21 @@ export default function App() {
         aria-label="メニューを閉じる"
         onClick={() => setIsMobileMenuOpen(false)}
       />
+
+      {notice && (
+        <div className="save-notice" role="status">
+          <span aria-hidden="true">&#10003;</span>
+          <p>{notice}</p>
+          <button
+            className="icon-button"
+            type="button"
+            aria-label="通知を閉じる"
+            onClick={() => setNotice("")}
+          >
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+      )}
 
       <aside className="sidebar" id="app-navigation" aria-label="アプリ概要">
         <div className="brand-block">
@@ -355,6 +423,7 @@ export default function App() {
         <MeetingForm
           mode="create"
           onCancel={() => navigate({ name: "list" })}
+          onDirtyChange={setIsFormDirty}
           onSubmit={handleCreate}
         />
       )}
@@ -377,6 +446,7 @@ export default function App() {
           onCancel={() =>
             navigate({ name: "detail", meetingId: selectedMeeting.id })
           }
+          onDirtyChange={setIsFormDirty}
           onSubmit={handleUpdate}
         />
       )}

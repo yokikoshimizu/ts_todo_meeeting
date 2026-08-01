@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { Meeting, MeetingFormValues } from "../types";
-import { getLocalDateTimeInputValue, parseTags } from "../utils";
+import {
+  formatDateTime,
+  getLocalDateTimeInputValue,
+  parseTags,
+} from "../utils";
 
 type Props = {
   mode: "create" | "edit";
@@ -241,6 +245,20 @@ export function MeetingForm({
         {hasErrors && (
           <div className="form-error-summary" role="alert">
             入力内容を確認してください。エラーのある項目へ移動しました。
+          </div>
+        )}
+
+        {mode === "edit" && meeting && (
+          <div className="edit-context" aria-live="polite">
+            <div>
+              <span
+                className={`edit-state ${isDirty ? "changed" : "saved"}`}
+              >
+                {isDirty ? "未保存の変更があります" : "保存済みの内容です"}
+              </span>
+              <strong>{meeting.title}</strong>
+            </div>
+            <small>最終更新: {formatDateTime(meeting.updatedAt)}</small>
           </div>
         )}
 

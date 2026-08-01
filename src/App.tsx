@@ -246,11 +246,24 @@ export default function App() {
       setMeetings((current) =>
         current.filter((meeting) => meeting.id !== meetingId),
       );
+      setNotice(`「${target.title}」を削除しました。`);
       setView({ name: "list" });
     }
   }
 
   function toggleActionItem(meetingId: number, actionItemId: number) {
+    const targetItem = meetings
+      .find((meeting) => meeting.id === meetingId)
+      ?.actionItems.find((item) => item.id === actionItemId);
+
+    if (targetItem) {
+      setNotice(
+        targetItem.isCompleted
+          ? "TODOを未完了に戻しました。"
+          : "TODOを完了にしました。",
+      );
+    }
+
     setMeetings((current) =>
       current.map((meeting) =>
         meeting.id === meetingId
@@ -432,6 +445,7 @@ export default function App() {
         <MeetingDetail
           meeting={selectedMeeting}
           onBack={() => navigate({ name: "list" })}
+          onDelete={() => handleDelete(selectedMeeting.id)}
           onEdit={() => navigate({ name: "edit", meetingId: selectedMeeting.id })}
           onToggleAction={(actionItemId) =>
             toggleActionItem(selectedMeeting.id, actionItemId)

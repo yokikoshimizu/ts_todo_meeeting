@@ -6,10 +6,15 @@ import {
 import { MeetingDetail } from "./components/MeetingDetail";
 import { MeetingForm } from "./components/MeetingForm";
 import { MeetingList } from "./components/MeetingList";
-import { initialMeetings } from "./fixtures";
-import { loadMeetings, saveMeetings } from "./storage";
+import {
+  createMeeting as createMeetingRequest,
+  deleteMeeting as deleteMeetingRequest,
+  fetchMeetings,
+  setActionItemCompleted,
+  updateMeeting as updateMeetingRequest,
+} from "./api";
 import type { ActionItem, Meeting, MeetingFormValues } from "./types";
-import { parseTags, sortMeetingsByDate } from "./utils";
+import { sortMeetingsByDate } from "./utils";
 
 type View =
   | { name: "list" }
@@ -17,53 +22,6 @@ type View =
   | { name: "create" }
   | { name: "detail"; meetingId: number }
   | { name: "edit"; meetingId: number };
-
-function createMeeting(values: MeetingFormValues, meetings: Meeting[]): Meeting {
-  const now = new Date().toISOString();
-  const meetingId = getNextId(meetings.map((meeting) => meeting.id));
-
-  return {
-    id: meetingId,
-    title: values.title,
-    heldAt: values.heldAt,
-    participants: values.participants,
-    content: values.content,
-    decisions: values.decisions,
-    tags: parseTags(values.tagsText),
-    createdAt: now,
-    updatedAt: now,
-    actionItems: values.actionItems.map((item, index) => ({
-      id: meetingId * 1000 + index + 1,
-      meetingId,
-      ...item,
-    })),
-  };
-}
-
-function updateMeetingValues(
-  meeting: Meeting,
-  values: MeetingFormValues,
-): Meeting {
-  return {
-    ...meeting,
-    title: values.title,
-    heldAt: values.heldAt,
-    participants: values.participants,
-    content: values.content,
-    decisions: values.decisions,
-    tags: parseTags(values.tagsText),
-    updatedAt: new Date().toISOString(),
-    actionItems: values.actionItems.map((item, index) => ({
-      id: meeting.actionItems[index]?.id ?? meeting.id * 1000 + index + 1,
-      meetingId: meeting.id,
-      ...item,
-    })),
-  };
-}
-
-function getNextId(ids: number[]) {
-  return ids.length === 0 ? 1 : Math.max(...ids) + 1;
-}
 
 function matchMeeting(meeting: Meeting, query: string, tag: string) {
   const normalizedQuery = query.trim().toLowerCase();
@@ -92,9 +50,7 @@ function matchMeeting(meeting: Meeting, query: string, tag: string) {
 }
 
 export default function App() {
-  const [meetings, setMeetings] = useState<Meeting[]>(() =>
-    loadMeetings(initialMeetings),
-  );
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [view, setView] = useState<View>({ name: "list" });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -104,10 +60,31 @@ export default function App() {
   const [actionAssigneeFilter, setActionAssigneeFilter] = useState("");
   const [isFormDirty, setIsFormDirty] = useState(false);
   const [notice, setNotice] = useState("");
+  const [requestError, setRequestError] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
-    saveMeetings(meetings);
-  }, [meetings]);
+    const controller = new AbortController();
+    setIsLoading(true);
+    setLoadError("");
+
+    fetchMeetings(controller.signal)
+      .then((loadedMeetings) => {
+        setMeetings(sortMeetingsByDate(loadedMeetings));
+        setIsLoading(false);
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+        setLoadError(getErrorMessage(error));
+        setIsLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [reloadKey]);
 
   useEffect(() => {
     if (!isMobileMenuOpen) {
@@ -209,20 +186,20 @@ export default function App() {
   );
   const isMeetingSection = view.name !== "actions";
 
-  function handleCreate(values: MeetingFormValues) {
-    const meeting = createMeeting(values, meetings);
+  async function handleCreate(values: MeetingFormValues) {
+    const meeting = await createMeetingRequest(values);
     setIsFormDirty(false);
     setNotice("会議メモを保存しました。");
     setMeetings((current) => sortMeetingsByDate([meeting, ...current]));
     setView({ name: "detail", meetingId: meeting.id });
   }
 
-  function handleUpdate(values: MeetingFormValues) {
+  async function handleUpdate(values: MeetingFormValues) {
     if (!selectedMeeting) {
       return;
     }
 
-    const updatedMeeting = updateMeetingValues(selectedMeeting, values);
+    const updatedMeeting = await updateMeetingRequest(selectedMeeting.id, values);
     setIsFormDirty(false);
     setNotice("会議メモを更新しました。");
     setMeetings((current) =>
@@ -235,7 +212,7 @@ export default function App() {
     setView({ name: "detail", meetingId: updatedMeeting.id });
   }
 
-  function handleDelete(meetingId: number) {
+  async function handleDelete(meetingId: number) {
     const target = meetings.find((meeting) => meeting.id === meetingId);
 
     if (!target) {
@@ -243,6 +220,14 @@ export default function App() {
     }
 
     if (window.confirm(`「${target.title}」を削除しますか？`)) {
+      try {
+        setRequestError("");
+        await deleteMeetingRequest(meetingId);
+      } catch (error) {
+        setRequestError(getErrorMessage(error));
+        return;
+      }
+
       setMeetings((current) =>
         current.filter((meeting) => meeting.id !== meetingId),
       );
@@ -251,34 +236,35 @@ export default function App() {
     }
   }
 
-  function toggleActionItem(meetingId: number, actionItemId: number) {
+  async function toggleActionItem(meetingId: number, actionItemId: number) {
     const targetItem = meetings
       .find((meeting) => meeting.id === meetingId)
       ?.actionItems.find((item) => item.id === actionItemId);
 
-    if (targetItem) {
+    if (!targetItem) {
+      return;
+    }
+
+    try {
+      setRequestError("");
+      const updatedMeeting = await setActionItemCompleted(
+        meetingId,
+        actionItemId,
+        !targetItem.isCompleted,
+      );
+      setMeetings((current) =>
+        current.map((meeting) =>
+          meeting.id === updatedMeeting.id ? updatedMeeting : meeting,
+        ),
+      );
       setNotice(
         targetItem.isCompleted
           ? "TODOを未完了に戻しました。"
           : "TODOを完了にしました。",
       );
+    } catch (error) {
+      setRequestError(getErrorMessage(error));
     }
-
-    setMeetings((current) =>
-      current.map((meeting) =>
-        meeting.id === meetingId
-          ? {
-              ...meeting,
-              updatedAt: new Date().toISOString(),
-              actionItems: meeting.actionItems.map((item) =>
-                item.id === actionItemId
-                  ? { ...item, isCompleted: !item.isCompleted }
-                  : item,
-              ),
-            }
-          : meeting,
-      ),
-    );
   }
 
   function navigate(nextView: View) {
@@ -352,6 +338,21 @@ export default function App() {
         </div>
       )}
 
+      {requestError && (
+        <div className="save-notice error-notice" role="alert">
+          <span aria-hidden="true">!</span>
+          <p>{requestError}</p>
+          <button
+            className="icon-button"
+            type="button"
+            aria-label="エラー通知を閉じる"
+            onClick={() => setRequestError("")}
+          >
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+      )}
+
       <aside className="sidebar" id="app-navigation" aria-label="アプリ概要">
         <div className="brand-block">
           <span className="brand-mark">MM</span>
@@ -401,7 +402,26 @@ export default function App() {
         </div>
       </aside>
 
-      {view.name === "list" && (
+      {isLoading && (
+        <section className="workspace app-state" aria-live="polite">
+          <span className="loading-indicator" aria-hidden="true" />
+          <h1>会議メモを読み込んでいます</h1>
+          <p>サーバーから最新のデータを取得しています。</p>
+        </section>
+      )}
+
+      {!isLoading && loadError && (
+        <section className="workspace app-state" role="alert">
+          <span className="state-mark" aria-hidden="true">!</span>
+          <h1>会議メモを読み込めませんでした</h1>
+          <p>{loadError}</p>
+          <button type="button" onClick={() => setReloadKey((key) => key + 1)}>
+            再読み込み
+          </button>
+        </section>
+      )}
+
+      {!isLoading && !loadError && view.name === "list" && (
         <MeetingList
           meetings={filteredMeetings}
           selectedTag={selectedTag}
@@ -416,7 +436,7 @@ export default function App() {
         />
       )}
 
-      {view.name === "actions" && (
+      {!isLoading && !loadError && view.name === "actions" && (
         <ActionItemList
           actionItems={filteredActionItems}
           assignees={actionAssignees}
@@ -432,7 +452,7 @@ export default function App() {
         />
       )}
 
-      {view.name === "create" && (
+      {!isLoading && !loadError && view.name === "create" && (
         <MeetingForm
           mode="create"
           onCancel={() => navigate({ name: "list" })}
@@ -441,7 +461,7 @@ export default function App() {
         />
       )}
 
-      {view.name === "detail" && selectedMeeting && (
+      {!isLoading && !loadError && view.name === "detail" && selectedMeeting && (
         <MeetingDetail
           meeting={selectedMeeting}
           onBack={() => navigate({ name: "list" })}
@@ -453,7 +473,7 @@ export default function App() {
         />
       )}
 
-      {view.name === "edit" && selectedMeeting && (
+      {!isLoading && !loadError && view.name === "edit" && selectedMeeting && (
         <MeetingForm
           mode="edit"
           meeting={selectedMeeting}
@@ -466,6 +486,12 @@ export default function App() {
       )}
     </main>
   );
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error
+    ? error.message
+    : "処理を完了できませんでした。もう一度お試しください。";
 }
 
 function matchActionItem(

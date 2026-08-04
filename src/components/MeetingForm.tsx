@@ -11,7 +11,7 @@ type Props = {
   meeting?: Meeting;
   onCancel: () => void;
   onDirtyChange: (isDirty: boolean) => void;
-  onSubmit: (values: MeetingFormValues) => void;
+  onSubmit: (values: MeetingFormValues) => Promise<void>;
 };
 
 type FormErrors = Partial<
@@ -94,6 +94,7 @@ export function MeetingForm({
   const submitGuard = useRef(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const isDirty = JSON.stringify(values) !== JSON.stringify(initialValues.current);
 
   useEffect(() => {
@@ -123,6 +124,7 @@ export function MeetingForm({
     key: K,
     value: MeetingFormValues[K],
   ) {
+    setSubmitError("");
     setValues((current) => ({ ...current, [key]: value }));
 
     if (key === "title" || key === "heldAt") {
@@ -135,6 +137,7 @@ export function MeetingForm({
     key: keyof MeetingFormValues["actionItems"][number],
     value: string | boolean,
   ) {
+    setSubmitError("");
     setValues((current) => ({
       ...current,
       actionItems: current.actionItems.map((item, itemIndex) =>
@@ -145,6 +148,7 @@ export function MeetingForm({
   }
 
   function addActionItem() {
+    setSubmitError("");
     setValues((current) => ({
       ...current,
       actionItems: [...current.actionItems, { ...emptyActionItem }],
@@ -152,6 +156,7 @@ export function MeetingForm({
   }
 
   function removeActionItem(index: number) {
+    setSubmitError("");
     setValues((current) => ({
       ...current,
       actionItems: current.actionItems.filter(
@@ -161,7 +166,7 @@ export function MeetingForm({
     clearError("actionItems");
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (submitGuard.current) {
@@ -182,10 +187,11 @@ export function MeetingForm({
 
     submitGuard.current = true;
     setIsSubmitting(true);
+    setSubmitError("");
     onDirtyChange(false);
 
     try {
-      onSubmit({
+      await onSubmit({
         ...values,
         title: values.title.trim(),
         participants: values.participants.trim(),
@@ -204,8 +210,12 @@ export function MeetingForm({
     } catch (error) {
       submitGuard.current = false;
       setIsSubmitting(false);
-      onDirtyChange(true);
-      throw error;
+      onDirtyChange(isDirty);
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "保存できませんでした。もう一度お試しください。",
+      );
     }
   }
 
@@ -534,6 +544,13 @@ export function MeetingForm({
             </small>
           </label>
         </section>
+
+        {submitError && (
+          <div className="form-submit-error" role="alert">
+            <strong>保存できませんでした</strong>
+            <p>{submitError}</p>
+          </div>
+        )}
 
         <div className="form-actions">
           <button type="button" disabled={isSubmitting} onClick={onCancel}>

@@ -137,6 +137,61 @@ textarea {
   padding: 2.25rem;
 }
 
+.app-state {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  min-height: 70vh;
+  text-align: center;
+}
+
+.app-state h1 {
+  margin: 1rem 0 0.35rem;
+  font-size: 1.35rem;
+}
+
+.app-state p {
+  max-width: 480px;
+  margin: 0 0 1rem;
+  color: var(--ink-muted);
+  line-height: 1.7;
+}
+
+.app-state button {
+  border-color: var(--primary);
+  color: var(--primary-dark);
+  font-weight: 700;
+}
+
+.loading-indicator,
+.state-mark {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+}
+
+.loading-indicator {
+  border: 4px solid #c9d9d5;
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: loading-spin 800ms linear infinite;
+}
+
+.state-mark {
+  border-radius: 50%;
+  background: #f5dfd9;
+  color: var(--danger);
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+
+@keyframes loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .toolbar {
   display: flex;
   align-items: flex-start;
@@ -1109,6 +1164,36 @@ textarea[aria-invalid="true"] {
   background: transparent;
 }
 
+.error-notice {
+  border-color: #d8a5a5;
+  background: #fff4f2;
+  color: var(--danger);
+}
+
+.error-notice > span {
+  background: var(--danger);
+}
+
+.form-submit-error {
+  border: 1px solid #d8a5a5;
+  border-radius: 6px;
+  margin: 1rem 1.5rem 0;
+  background: #fff4f2;
+  color: var(--danger);
+  padding: 0.8rem 0.9rem;
+}
+
+.form-submit-error strong,
+.form-submit-error p {
+  margin: 0;
+}
+
+.form-submit-error p {
+  margin-top: 0.25rem;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
 @media (max-width: 700px) {
   .form-workspace > .form-toolbar {
     margin-bottom: 0.85rem;
@@ -1172,6 +1257,11 @@ textarea[aria-invalid="true"] {
     right: 1rem;
     left: 1rem;
     width: auto;
+  }
+
+  .form-submit-error {
+    margin-right: 1rem;
+    margin-left: 1rem;
   }
 }
 
